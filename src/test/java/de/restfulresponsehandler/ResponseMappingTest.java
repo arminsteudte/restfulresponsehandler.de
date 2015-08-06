@@ -16,7 +16,7 @@ public class ResponseMappingTest {
 
         // given
         Response response = null;
-        ResponseMapping<DomainObject> responseMapping = new ResponseMapping<>();
+        ResponseMapping<DomainObject> responseMapping = ResponseMapping.builder().build();
 
         // when
         responseMapping.handleResponse(response);
