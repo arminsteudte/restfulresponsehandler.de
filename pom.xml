@@ -7,6 +7,28 @@
     <groupId>de.restfulresponsehandler</groupId>
     <artifactId>de.restfulresponsehandler</artifactId>
     <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <version.jersey-client>2.19</version.jersey-client>
+        <version.junit>4.12</version.junit>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${version.jersey-client}</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${version.junit}</version>
+        </dependency>
 
 
+    </dependencies>
 </project>
