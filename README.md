@@ -13,4 +13,6 @@ The library is based on my experience while mediating between different restful 
 ## Requirements
 Requires JDK 1.8 or higher.
 
-
+## Build status
+![travis-ci build status](https://travis-ci.org/arminsteudte/restfulresponsehandler.de.svg?branch=master "Travis-CI 
+build status")
