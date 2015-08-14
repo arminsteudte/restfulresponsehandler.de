@@ -20,15 +20,15 @@ public class ResponseMapping<R> {
     private static Logger LOG = LoggerFactory.getLogger(ResponseMapping.class);
 
     private final Status successStatus;
-    private final Class<R> succesType;
+    private final Class<R> successType;
     private final ImmutableMultimap<Status, ErrorHandlingDescription> statusErrorMapping;
 
 
-    private ResponseMapping(Status successStatus, Class<R> succesType, ImmutableMultimap<Status,
+    private ResponseMapping(Status successStatus, Class<R> successType, ImmutableMultimap<Status,
             ErrorHandlingDescription>
             statusErrorMapping) {
         this.successStatus = successStatus;
-        this.succesType = succesType;
+        this.successType = successType;
         this.statusErrorMapping = statusErrorMapping;
     }
 
@@ -58,7 +58,7 @@ public class ResponseMapping<R> {
         try(AutoCloseableResponse autoClosing = new AutoCloseableResponse(response)){
 
             if (response.getStatus() == successStatus.getStatusCode()) {
-                    responseObject = response.readEntity(succesType);
+                    responseObject = response.readEntity(successType);
             }
 
         }catch (ProcessingException ex) {
@@ -73,26 +73,26 @@ public class ResponseMapping<R> {
     private void logServiceResponseAsString(Response r) {
         // TODO try-catch and error message if entity cannot be read as String
         final String serviceResponse = r.readEntity(String.class);
-        LOG.warn("Could deserialize service response into type {}: {}", succesType.getSimpleName(), serviceResponse);
+        LOG.warn("Could deserialize service response into type {}: {}", successType.getSimpleName(), serviceResponse);
     }
 
-    public static class ResponseMappingBuilder {
+    public static class ResponseMappingBuilder<S> {
 
         private final Status successStatus = Status.OK;
-        private Class<?> successType;
+        private Class<S> successType;
         private Map<Status, ErrorHandlingDescription> statusCodeErrorHandlingMapping;
 
         private ResponseMappingBuilder() {
             super();
         }
 
-        public ResponseMappingBuilder addSuccessType(Class<?> responseObjetType) {
-            this.successType = responseObjetType;
+        public ResponseMappingBuilder addSuccessType(Class<S> responseObjectType) {
+            this.successType = responseObjectType;
             return this;
         }
 
         public ResponseMapping build() {
-            return new ResponseMapping(successStatus, successType, ImmutableMultimap.of());
+            return new ResponseMapping<S>(successStatus, successType, ImmutableMultimap.of());
         }
 
     }
