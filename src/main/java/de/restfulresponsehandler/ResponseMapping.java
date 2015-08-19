@@ -57,7 +57,9 @@ public class ResponseMapping<R> {
 
         R responseObject = null;
 
-        try(AutoCloseableResponse autoClosing = new AutoCloseableResponse(response)){
+        response.bufferEntity();
+
+        try{
 
             if (response.getStatus() == successStatus.getStatusCode()) {
                     responseObject = response.readEntity(successType);
@@ -67,6 +69,11 @@ public class ResponseMapping<R> {
             LOG.debug("Error deserializing service response.");
             logServiceResponseAsString(response);
             throw ex;
+        }finally {
+            if(response != null) {
+                response.close();
+                LOG.debug("Response closed.");
+            }
         }
 
         return responseObject;

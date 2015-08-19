@@ -3,7 +3,6 @@ package de.restfulresponsehandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-import de.restfulresponsehandler.exceptions.EntitySerializationException;
 import org.apache.http.client.config.RequestConfig;
 import org.glassfish.jersey.apache.connector.ApacheClientProperties;
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
@@ -20,14 +19,15 @@ import javax.ws.rs.core.Response.Status;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.verify;
 
 /**
  * Created by Armin on 06.08.2015.
  */
-public class ResponseMappingTest {
+public class ResponseMappingIT {
 
     public static final int PORT = 8089;
     public static final String EXAMPLES_RESOURCE_PATH = "/examples";
@@ -35,7 +35,7 @@ public class ResponseMappingTest {
     private static Client restClient = RestClientBuilder.createDefaultRestClient();
 
     @Rule
-    public WireMockRule wireMockRule = new WireMockRule(PORT); // No-args constructor defaults to port 8080
+    public WireMockRule wireMockRule = new WireMockRule(PORT);
 
     @Test(expected = NullPointerException.class)
     public void handleResponse_WithNullResponse_ShouldThrowIllegalArgumentException() {
@@ -78,11 +78,13 @@ public class ResponseMappingTest {
 
 
 
-    @Test(expected = EntitySerializationException.class)
-    public void handleResponse_WithNotSerializeableBody_ShouldThrowExceptionAndLogBodyAsString() {
+    @Test(expected = ProcessingException.class)
+    public void handleResponse_WithNotSerializeableBody_ShouldThrowException() {
 
         // given
         final String notSerializeableBody = "{ notExistingProperty: ''}";
+        final ErrorReporter reporterMock = mock(ErrorReporter.class);
+
         final ResponseMapping<ExampleDomainObject> responseMapping = ResponseMapping.<ExampleDomainObject>builder()
                 .addSuccessType(ExampleDomainObject.class)
                 .build();
@@ -94,9 +96,31 @@ public class ResponseMappingTest {
         // when
         final ExampleDomainObject domainObject = responseMapping.handleResponse(response);
 
-        fail("ProcessingException not thrown!");
+        fail("No exception on serialization!");
+    }
 
+    @Test(expected = ProcessingException.class)
+    public void handleResponse_WithNotSerializeableBody_ShouldNotifyErrorReporter() {
 
+        // given
+        final String notSerializeableBody = "{ \"notExistingProperty\": \" \"}";
+        final ErrorReporter reporterMock = mock(ErrorReporter.class);
+
+        final ResponseMapping<ExampleDomainObject> responseMapping = ResponseMapping.<ExampleDomainObject>builder()
+                .addSuccessType(ExampleDomainObject.class)
+                .addErrorReporter(reporterMock)
+                .build();
+
+        createSuccessExampleResourceWithBody(notSerializeableBody);
+
+        final Response response = callExampleResource();
+
+        // when
+        final ExampleDomainObject domainObject = responseMapping.handleResponse(response);
+
+        // then
+        verify(reporterMock).reportSerializationError(Status.OK, ExampleDomainObject.class, anyString());
+        verifyNoMoreInteractions(reporterMock);
     }
 
     private Response callExampleResource() {
