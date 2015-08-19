@@ -3,6 +3,7 @@ package de.restfulresponsehandler;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import de.restfulresponsehandler.exceptions.EntitySerializationException;
 import org.apache.http.client.config.RequestConfig;
 import org.glassfish.jersey.apache.connector.ApacheClientProperties;
 import org.glassfish.jersey.apache.connector.ApacheConnectorProvider;
@@ -10,6 +11,7 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.junit.Rule;
 import org.junit.Test;
 
+import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.MediaType;
@@ -58,22 +60,13 @@ public class ResponseMappingTest {
 
         final String json = toJson(payload, mapper);
 
-        stubFor(get(urlMatching(EXAMPLES_RESOURCE_PATH)).
-                willReturn(aResponse()
-                        .withStatus(Status.OK.getStatusCode())
-                        .withHeader("Content-Type", "application/json")
-                        .withBody(json)));
+        createSuccessExampleResourceWithBody(json);
 
         final ResponseMapping<ExampleDomainObject> responseMapping = ResponseMapping.<ExampleDomainObject>builder()
                 .addSuccessType(ExampleDomainObject.class)
                 .build();
 
-        final Response jerseyResponse = restClient
-                .target("http://localhost:" + PORT)
-                .path(EXAMPLES_RESOURCE_PATH)
-                .request(MediaType.APPLICATION_JSON)
-                .accept(MediaType.APPLICATION_JSON)
-                .get();
+        final Response jerseyResponse = callExampleResource();
         // when
         final ExampleDomainObject domainObject = responseMapping.handleResponse(jerseyResponse);
 
@@ -81,6 +74,46 @@ public class ResponseMappingTest {
         assertNotNull(domainObject);
         assertEquals(payload.getName(), domainObject.getName());
 
+    }
+
+
+
+    @Test(expected = EntitySerializationException.class)
+    public void handleResponse_WithNotSerializeableBody_ShouldThrowExceptionAndLogBodyAsString() {
+
+        // given
+        final String notSerializeableBody = "{ notExistingProperty: ''}";
+        final ResponseMapping<ExampleDomainObject> responseMapping = ResponseMapping.<ExampleDomainObject>builder()
+                .addSuccessType(ExampleDomainObject.class)
+                .build();
+
+        createSuccessExampleResourceWithBody(notSerializeableBody);
+
+        final Response response = callExampleResource();
+
+        // when
+        final ExampleDomainObject domainObject = responseMapping.handleResponse(response);
+
+        fail("ProcessingException not thrown!");
+
+
+    }
+
+    private Response callExampleResource() {
+        return restClient
+                .target("http://localhost:" + PORT)
+                .path(EXAMPLES_RESOURCE_PATH)
+                .request(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .get();
+    }
+
+    private void createSuccessExampleResourceWithBody(String json) {
+        stubFor(get(urlMatching(EXAMPLES_RESOURCE_PATH)).
+                willReturn(aResponse()
+                        .withStatus(Status.OK.getStatusCode())
+                        .withHeader("Content-Type", "application/json")
+                        .withBody(json)));
     }
 
     private String toJson(Object target, ObjectMapper mapper) throws JsonProcessingException {

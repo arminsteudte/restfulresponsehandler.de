@@ -19,14 +19,16 @@ public class ResponseMapping<R> {
 
     private static Logger LOG = LoggerFactory.getLogger(ResponseMapping.class);
 
+    private final ErrorReporter reporter;
     private final Status successStatus;
     private final Class<R> successType;
     private final ImmutableMultimap<Status, ErrorHandlingDescription> statusErrorMapping;
 
-
-    private ResponseMapping(Status successStatus, Class<R> successType, ImmutableMultimap<Status,
+    private ResponseMapping(ErrorReporter reporter, Status successStatus, Class<R> successType,
+                            ImmutableMultimap<Status,
             ErrorHandlingDescription>
             statusErrorMapping) {
+        this.reporter = reporter;
         this.successStatus = successStatus;
         this.successType = successType;
         this.statusErrorMapping = statusErrorMapping;
@@ -73,7 +75,7 @@ public class ResponseMapping<R> {
     private void logServiceResponseAsString(Response r) {
         // TODO try-catch and error message if entity cannot be read as String
         final String serviceResponse = r.readEntity(String.class);
-        LOG.warn("Could deserialize service response into type {}: {}", successType.getSimpleName(), serviceResponse);
+        reporter.reportSerializationError(Status.fromStatusCode(r.getStatus()), successType, serviceResponse);
     }
 
     public static class ResponseMappingBuilder<S> {
@@ -81,6 +83,7 @@ public class ResponseMapping<R> {
         private final Status successStatus = Status.OK;
         private Class<S> successType;
         private Map<Status, ErrorHandlingDescription> statusCodeErrorHandlingMapping;
+        private ErrorReporter reporter;
 
         private ResponseMappingBuilder() {
             super();
@@ -91,8 +94,19 @@ public class ResponseMapping<R> {
             return this;
         }
 
+        public ResponseMappingBuilder addErrorReporter(ErrorReporter reporter) {
+            this.reporter = reporter;
+            return this;
+        }
+
         public ResponseMapping build() {
-            return new ResponseMapping<S>(successStatus, successType, ImmutableMultimap.of());
+
+            if(this.reporter == null) {
+                this.reporter = new Slf4jErrorReporter();
+            }
+
+            return new ResponseMapping<S>(this.reporter, this.successStatus, this.successType, ImmutableMultimap
+                    .of());
         }
 
     }
