@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.ProcessingException;
 import javax.ws.rs.core.Response;
+import java.util.HashMap;
 import java.util.Map;
 
 import static javax.ws.rs.core.Response.Status;
@@ -89,7 +90,7 @@ public class ResponseMapping<R> {
 
         private final Status successStatus = Status.OK;
         private Class<S> successType;
-        private Map<Status, ErrorHandlingDescription> statusCodeErrorHandlingMapping;
+        private Map<Status, ErrorHandlingDescription> statusCodeErrorHandlingMapping = new HashMap<>();
         private ErrorReporter reporter;
 
         private ResponseMappingBuilder() {
@@ -103,6 +104,21 @@ public class ResponseMapping<R> {
 
         public ResponseMappingBuilder addErrorReporter(ErrorReporter reporter) {
             this.reporter = reporter;
+            return this;
+        }
+
+        /**
+         * Will add an error situation and how to handle it to the response mapping. If a there has been a mapping
+         * before this will be overwritten.
+         *
+         * @param responseStatus Http status to react to.
+         * @param errorHandling Object holding error handling informations.
+         * @return
+         */
+        public ResponseMappingBuilder addErrorSituation(Status responseStatus, ErrorHandlingDescription errorHandling) {
+
+            statusCodeErrorHandlingMapping.put(responseStatus, errorHandling);
+
             return this;
         }
 
@@ -121,13 +137,13 @@ public class ResponseMapping<R> {
     /**
      * Object holding the necessary types and functions to produce a domain exception for a specific service response.
      */
-    private static class ErrorHandlingDescription {
+    public static class ErrorHandlingDescription {
 
         private final Class<?> responseObjectType;
 
         private final Producer<? extends RuntimeException> exceptionProducer;
 
-        private ErrorHandlingDescription(Class<?> responseObjectType,
+        public ErrorHandlingDescription(Class<?> responseObjectType,
                                          Producer<? extends RuntimeException> exceptionProducer) {
             this.responseObjectType = responseObjectType;
             this.exceptionProducer = exceptionProducer;

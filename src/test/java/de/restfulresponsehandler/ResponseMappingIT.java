@@ -31,6 +31,7 @@ public class ResponseMappingIT {
 
     public static final int PORT = 8089;
     public static final String EXAMPLES_RESOURCE_PATH = "/examples";
+    public static final String EMPTY_JSON = "{}";
     private static ObjectMapper mapper = new ObjectMapper();
     private static Client restClient = RestClientBuilder.createDefaultRestClient();
 
@@ -75,7 +76,6 @@ public class ResponseMappingIT {
         assertEquals(payload.getName(), domainObject.getName());
 
     }
-
 
 
     @Test(expected = ProcessingException.class)
@@ -123,6 +123,25 @@ public class ResponseMappingIT {
         verifyNoMoreInteractions(reporterMock);
     }
 
+    @Test(expected = ExampleException.class)
+    public void handleResponse_WithStatus404_ShouldThrowCorrespondingException() {
+
+        // given
+
+        final ResponseMapping responseMapping = ResponseMapping.builder().addErrorSituation(Status.NOT_FOUND, new ResponseMapping.ErrorHandlingDescription
+                (ExampleDomainObject.class, () -> {
+                    throw new ExampleException();
+                })).build();
+
+        createExampleResourceWithStatusAndBody(Status.NOT_FOUND, EMPTY_JSON);
+
+        final Response response = callExampleResource();
+
+        // when
+        responseMapping.handleResponse(response);
+
+    }
+
     private Response callExampleResource() {
         return restClient
                 .target("http://localhost:" + PORT)
@@ -133,9 +152,13 @@ public class ResponseMappingIT {
     }
 
     private void createSuccessExampleResourceWithBody(String json) {
+        createExampleResourceWithStatusAndBody(Status.OK, json);
+    }
+
+    private void createExampleResourceWithStatusAndBody(Status status, String json) {
         stubFor(get(urlMatching(EXAMPLES_RESOURCE_PATH)).
                 willReturn(aResponse()
-                        .withStatus(Status.OK.getStatusCode())
+                        .withStatus(status.getStatusCode())
                         .withHeader("Content-Type", "application/json")
                         .withBody(json)));
     }
@@ -186,6 +209,10 @@ public class ResponseMappingIT {
 
             return client;
         }
+    }
+
+    public static class ExampleException extends RuntimeException {
+
     }
 
 }
